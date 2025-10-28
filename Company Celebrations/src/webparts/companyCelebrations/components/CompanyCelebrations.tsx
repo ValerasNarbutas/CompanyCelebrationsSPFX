@@ -19,12 +19,10 @@ import {
   IDropdownOption, 
   Persona, 
   PersonaSize,
-  IPersonaProps,
-  HoverCard,
-  IExpandingCardProps,
-  PersonaPresence
+  IPersonaProps
 } from '@fluentui/react';
 import { PeoplePicker, IPeoplePickerContext, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
+import { LivePersona } from "@pnp/spfx-controls-react/lib/controls/livepersona";
 import { Confetti, Cake } from '@phosphor-icons/react';
 import { getMonthDays, getEventsForDate, getUpcomingEvents, formatEventDate } from '../utils/calendar-utils';
 import { format, isSameMonth, isToday } from 'date-fns';
@@ -70,72 +68,6 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
 
   const upcomingEvents = useMemo(() => getUpcomingEvents(filteredEvents, 10), [filteredEvents]);
   const monthDays = useMemo(() => getMonthDays(currentMonth), [currentMonth]);
-
-  // Function to create persona card props for hover
-  const getPersonaCardProps = (event: ICelebrationEvent): IExpandingCardProps | undefined => {
-    if (!event.Person) return undefined;
-
-    // Calculate days until event
-    const eventDate = new Date(event.EventDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    eventDate.setHours(0, 0, 0, 0);
-    const daysUntil = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-    return {
-      onRenderCompactCard: () => (
-        <div style={{ 
-          padding: '20px', 
-          maxWidth: '320px',
-          backgroundColor: '[theme:white, default: #ffffff]',
-          borderRadius: '2px'
-        }}>
-          <Persona
-            imageUrl={event.Person?.Picture}
-            text={event.Person?.Title || event.Title}
-            secondaryText={event.Person?.EMail}
-            size={PersonaSize.size72}
-            presence={PersonaPresence.none}
-            styles={{
-              root: { marginBottom: '16px' }
-            }}
-          />
-          <div style={{ 
-            borderTop: '1px solid #edebe9',
-            paddingTop: '12px',
-            fontSize: '14px',
-            color: '#323130'
-          }}>
-            <div style={{ marginBottom: '8px' }}>
-              <strong>Event:</strong> {event.EventType}
-            </div>
-            <div style={{ marginBottom: '8px' }}>
-              <strong>Date:</strong> {formatEventDate(event.EventDate)}
-            </div>
-            {daysUntil >= 0 && (
-              <div style={{ marginBottom: '8px' }}>
-                <strong>Coming up:</strong> {daysUntil === 0 ? 'Today!' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`}
-              </div>
-            )}
-            {event.Notes && (
-              <div style={{ marginTop: '12px' }}>
-                <strong>Notes:</strong>
-                <div style={{ 
-                  marginTop: '4px',
-                  color: '#605e5c',
-                  fontSize: '13px',
-                  fontStyle: 'italic'
-                }}>
-                  {event.Notes}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      ),
-      renderData: event
-    };
-  };
 
   const handleAddClick = (): void => {
     setFormTitle('');
@@ -313,37 +245,25 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
                     
                     {dayEvents.length > 0 && (
                       <div className={styles.calendarEvents}>
-                        {dayEvents.slice(0, 2).map(event => {
-                          const cardProps = getPersonaCardProps(event);
-                          const eventContent = (
-                            <div
-                              key={event.Id}
-                              className={`${styles.calendarEvent} ${event.EventType === 'Birthday' ? styles.calendarEventBirthday : styles.calendarEventSpecial}`}
-                              onClick={() => handleEventClick(event)}
-                              title={event.Title}
-                            >
-                              {event.Person && event.Person.Picture ? (
-                                <img 
-                                  src={event.Person.Picture} 
-                                  alt={event.Title}
-                                  className={styles.eventPersonPhoto}
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        {dayEvents.slice(0, 2).map(event => (
+                          <div
+                            key={event.Id}
+                            className={`${styles.calendarEvent} ${event.EventType === 'Birthday' ? styles.calendarEventBirthday : styles.calendarEventSpecial}`}
+                            onClick={() => handleEventClick(event)}
+                            title={event.Title}
+                          >
+                            {event.Person && event.Person.EMail ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', marginRight: '4px' }}>
+                                <LivePersona
+                                  upn={event.Person.EMail}
+                                  serviceScope={props.context.serviceScope as any}
+                                  disableHover={false}
                                 />
-                              ) : null}
-                              <span className={styles.eventTitle}>{event.Title}</span>
-                            </div>
-                          );
-
-                          return cardProps ? (
-                            <HoverCard
-                              key={event.Id}
-                              expandingCardProps={cardProps}
-                              instantOpenOnClick={false}
-                            >
-                              {eventContent}
-                            </HoverCard>
-                          ) : eventContent;
-                        })}
+                              </div>
+                            ) : null}
+                            <span className={styles.eventTitle}>{event.Title}</span>
+                          </div>
+                        ))}
                         {dayEvents.length > 2 && (
                           <div className={styles.calendarEvent}>+{dayEvents.length - 2} more</div>
                         )}
@@ -364,56 +284,42 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
               </div>
             ) : (
               <div className={styles.eventsList}>
-                {upcomingEvents.map(event => {
-                  const cardProps = getPersonaCardProps(event);
-                  const eventCard = (
-                    <div
-                      key={event.Id}
-                      className={`${styles.eventCard} ${event.EventType === 'Birthday' ? styles.eventCardBirthday : styles.eventCardSpecial}`}
-                      onClick={() => handleEventClick(event)}
-                    >
-                      <div className={styles.eventCardContent}>
-                        {event.Person && event.Person.Picture ? (
-                          <Persona
-                            imageUrl={event.Person.Picture}
-                            text={event.Person.Title || event.Title}
-                            secondaryText={event.Person.EMail}
-                            size={PersonaSize.size32}
-                            hidePersonaDetails={true}
-                            showSecondaryText={false}
+                {upcomingEvents.map(event => (
+                  <div
+                    key={event.Id}
+                    className={`${styles.eventCard} ${event.EventType === 'Birthday' ? styles.eventCardBirthday : styles.eventCardSpecial}`}
+                    onClick={() => handleEventClick(event)}
+                  >
+                    <div className={styles.eventCardContent}>
+                      {event.Person && event.Person.EMail ? (
+                        <div style={{ flexShrink: 0 }}>
+                          <LivePersona
+                            upn={event.Person.EMail}
+                            serviceScope={props.context.serviceScope as any}
+                            disableHover={false}
                           />
-                        ) : (
-                          <div className={`${styles.eventIcon} ${event.EventType === 'Birthday' ? styles.eventIconBirthday : styles.eventIconSpecial}`}>
-                            {event.EventType === 'Birthday' ? <Cake size={20} weight="fill" /> : <Confetti size={20} weight="fill" />}
-                          </div>
-                        )}
-                        
-                        <div className={styles.eventDetails}>
-                          <div className={styles.eventHeader}>
-                            <h3 className={styles.eventName}>{event.Title}</h3>
-                          <span className={styles.eventBadge}>
-                            {event.daysUntil === 0 ? 'Today!' : event.daysUntil === 1 ? 'Tomorrow' : `${event.daysUntil} days`}
-                          </span>
                         </div>
-                        <p className={styles.eventDate}>{formatEventDate(event.EventDate)}</p>
-                        {event.Notes && (
-                          <p className={styles.eventNotes}>{event.Notes}</p>
-                        )}
+                      ) : (
+                        <div className={`${styles.eventIcon} ${event.EventType === 'Birthday' ? styles.eventIconBirthday : styles.eventIconSpecial}`}>
+                          {event.EventType === 'Birthday' ? <Cake size={20} weight="fill" /> : <Confetti size={20} weight="fill" />}
+                        </div>
+                      )}
+                      
+                      <div className={styles.eventDetails}>
+                        <div className={styles.eventHeader}>
+                          <h3 className={styles.eventName}>{event.Title}</h3>
+                        <span className={styles.eventBadge}>
+                          {event.daysUntil === 0 ? 'Today!' : event.daysUntil === 1 ? 'Tomorrow' : `${event.daysUntil} days`}
+                        </span>
                       </div>
+                      <p className={styles.eventDate}>{formatEventDate(event.EventDate)}</p>
+                      {event.Notes && (
+                        <p className={styles.eventNotes}>{event.Notes}</p>
+                      )}
                     </div>
                   </div>
-                  );
-
-                  return cardProps ? (
-                    <HoverCard
-                      key={event.Id}
-                      expandingCardProps={cardProps}
-                      instantOpenOnClick={false}
-                    >
-                      {eventCard}
-                    </HoverCard>
-                  ) : eventCard;
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
