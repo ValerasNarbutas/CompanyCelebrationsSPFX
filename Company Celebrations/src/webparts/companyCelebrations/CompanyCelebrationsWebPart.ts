@@ -34,7 +34,11 @@ export default class CompanyCelebrationsWebPart extends BaseClientSideWebPart<IC
   public render(): void {
     // Initialize PnPjs with SPFx context
     const sp = spfi().using(SPFx(this.context));
-    this._service = new CelebrationService(sp, this.properties.listName || "CompanyCelebrations");
+    this._service = new CelebrationService(
+      sp, 
+      this.properties.listName || "CompanyCelebrations",
+      this.context.pageContext.web.absoluteUrl
+    );
 
     const element: React.ReactElement<ICompanyCelebrationsProps> = React.createElement(
       CompanyCelebrations,

@@ -11,10 +11,12 @@ import { ICelebrationService } from './ICelebrationService';
 export class CelebrationService implements ICelebrationService {
   private sp: SPFI;
   private listName: string;
+  private webUrl: string;
 
-  constructor(sp: SPFI, listName: string = "CompanyCelebrations") {
+  constructor(sp: SPFI, listName: string = "CompanyCelebrations", webUrl?: string) {
     this.sp = sp;
     this.listName = listName;
+    this.webUrl = webUrl || '';
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,7 +38,7 @@ export class CelebrationService implements ICelebrationService {
     try {
       await this.getList().fields.getByInternalNameOrTitle(fieldName)();
       return true;
-    } catch (error) {
+    } catch {
       console.log(`Field ${fieldName} does not exist`);
       return false;
     }
@@ -231,9 +233,17 @@ export class CelebrationService implements ICelebrationService {
 
   public async updateEvent(id: number, event: Partial<ICelebrationEventFormData>): Promise<void> {
     try {
+      // Check if CelebrationPerson field exists
+      const hasPersonField = await this.checkFieldExists("CelebrationPerson");
+      
       const updateData: Record<string, string | number | undefined> = {};
       if (event.Title !== undefined) updateData.Title = event.Title;
-      if (event.PersonId !== undefined) updateData.CelebrationPersonId = event.PersonId;
+      
+      // Only update PersonId if field exists and value is provided
+      if (hasPersonField && event.PersonId !== undefined) {
+        updateData.CelebrationPersonId = event.PersonId;
+      }
+      
       if (event.EventDate !== undefined) updateData.CelebrationDate = event.EventDate;
       if (event.EventType !== undefined) updateData.CelebrationType = event.EventType;
       if (event.Notes !== undefined) updateData.CelebrationNotes = event.Notes;
@@ -268,11 +278,15 @@ export class CelebrationService implements ICelebrationService {
 
     // Add Person info if available
     if (item.CelebrationPerson) {
+      const photoUrl = this.webUrl 
+        ? `${this.webUrl}/_layouts/15/userphoto.aspx?size=L&username=${item.CelebrationPerson.EMail}`
+        : `/_layouts/15/userphoto.aspx?size=L&username=${item.CelebrationPerson.EMail}`;
+      
       event.Person = {
         Id: item.CelebrationPerson.Id,
         Title: item.CelebrationPerson.Title,
         EMail: item.CelebrationPerson.EMail,
-        Picture: `/_layouts/15/userphoto.aspx?size=L&username=${item.CelebrationPerson.EMail}`
+        Picture: photoUrl
       };
     }
 
@@ -280,6 +294,8 @@ export class CelebrationService implements ICelebrationService {
   }
 
   public async getUserPhotoUrl(email: string): Promise<string> {
-    return `/_layouts/15/userphoto.aspx?size=L&username=${email}`;
+    return this.webUrl
+      ? `${this.webUrl}/_layouts/15/userphoto.aspx?size=L&username=${email}`
+      : `/_layouts/15/userphoto.aspx?size=L&username=${email}`;
   }
 }
