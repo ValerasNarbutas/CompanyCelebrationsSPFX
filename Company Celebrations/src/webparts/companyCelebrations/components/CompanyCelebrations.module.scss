@@ -145,6 +145,23 @@
   overflow: hidden;
   white-space: nowrap;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.eventPersonPhoto {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.eventTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .calendarEventBirthday {

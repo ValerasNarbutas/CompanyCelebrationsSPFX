@@ -4,6 +4,7 @@ import "@pnp/sp/lists";
 import "@pnp/sp/items";
 import "@pnp/sp/items/get-all";
 import "@pnp/sp/fields";
+import "@pnp/sp/site-users/web";
 import { ICelebrationEvent, ICelebrationEventFormData, EventType } from '../models/ICelebrationEvent';
 import { ICelebrationService } from './ICelebrationService';
 
@@ -31,6 +32,16 @@ export class CelebrationService implements ICelebrationService {
     }
   }
 
+  private async checkFieldExists(fieldName: string): Promise<boolean> {
+    try {
+      await this.getList().fields.getByInternalNameOrTitle(fieldName)();
+      return true;
+    } catch (error) {
+      console.log(`Field ${fieldName} does not exist`);
+      return false;
+    }
+  }
+
   public async createList(): Promise<void> {
     try {
       // Check if list already exists
@@ -44,6 +55,13 @@ export class CelebrationService implements ICelebrationService {
 
       // Create the list
       const listAddResult = await this.sp.web.lists.add(this.listName, "Company celebration events including birthdays and special days", 100, false);
+      
+      // Add Person field
+      await listAddResult.list.fields.addUser("CelebrationPerson", {
+        Title: "CelebrationPerson",
+        Required: true,
+        SelectionMode: 0 // 0 = single person, 1 = multiple people
+      });
       
       // Add EventDate field - using internal name without space
       await listAddResult.list.fields.addDateTime("CelebrationDate", { 
@@ -81,25 +99,8 @@ export class CelebrationService implements ICelebrationService {
       const nextMonth = new Date(today.getTime());
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       
+      // Only add Special Day events as sample data (no employee birthdays)
       const sampleEvents = [
-        {
-          Title: "John Smith",
-          CelebrationDate: new Date(today.getFullYear(), 2, 15).toISOString(), // March 15
-          CelebrationType: "Birthday",
-          CelebrationNotes: "Loves chocolate cake!"
-        },
-        {
-          Title: "Sarah Johnson",
-          CelebrationDate: new Date(today.getFullYear(), 5, 22).toISOString(), // June 22
-          CelebrationType: "Birthday",
-          CelebrationNotes: "Coffee enthusiast"
-        },
-        {
-          Title: "Mike Wilson",
-          CelebrationDate: new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 10).toISOString(),
-          CelebrationType: "Birthday",
-          CelebrationNotes: ""
-        },
         {
           Title: "Company Anniversary",
           CelebrationDate: new Date(today.getFullYear(), 8, 1).toISOString(), // September 1
@@ -111,6 +112,12 @@ export class CelebrationService implements ICelebrationService {
           CelebrationDate: new Date(today.getFullYear(), 11, 15).toISOString(), // December 15
           CelebrationType: "Special Day",
           CelebrationNotes: "Annual team celebration"
+        },
+        {
+          Title: "Summer Party",
+          CelebrationDate: new Date(today.getFullYear(), 6, 20).toISOString(), // July 20
+          CelebrationType: "Special Day",
+          CelebrationNotes: "Annual summer company event"
         }
       ];
 
@@ -135,9 +142,20 @@ export class CelebrationService implements ICelebrationService {
 
   public async getEvents(): Promise<ICelebrationEvent[]> {
     try {
-      const items = await this.getList().items
-        .select("Id", "Title", "CelebrationDate", "CelebrationType", "CelebrationNotes", "Created", "Modified")
-        .orderBy("CelebrationDate", true)();
+      // Check if CelebrationPerson field exists
+      const hasPersonField = await this.checkFieldExists("CelebrationPerson");
+      
+      let items;
+      if (hasPersonField) {
+        items = await this.getList().items
+          .select("Id", "Title", "CelebrationPerson/Id", "CelebrationPerson/Title", "CelebrationPerson/EMail", "CelebrationDate", "CelebrationType", "CelebrationNotes", "Created", "Modified")
+          .expand("CelebrationPerson")
+          .orderBy("CelebrationDate", true)();
+      } else {
+        items = await this.getList().items
+          .select("Id", "Title", "CelebrationDate", "CelebrationType", "CelebrationNotes", "Created", "Modified")
+          .orderBy("CelebrationDate", true)();
+      }
       
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return items.map((item: any) => this.mapToEvent(item));
@@ -149,10 +167,22 @@ export class CelebrationService implements ICelebrationService {
 
   public async getEventsByType(type: EventType): Promise<ICelebrationEvent[]> {
     try {
-      const items = await this.getList().items
-        .select("Id", "Title", "CelebrationDate", "CelebrationType", "CelebrationNotes", "Created", "Modified")
-        .filter(`CelebrationType eq '${type}'`)
-        .orderBy("CelebrationDate", true)();
+      // Check if CelebrationPerson field exists
+      const hasPersonField = await this.checkFieldExists("CelebrationPerson");
+      
+      let items;
+      if (hasPersonField) {
+        items = await this.getList().items
+          .select("Id", "Title", "CelebrationPerson/Id", "CelebrationPerson/Title", "CelebrationPerson/EMail", "CelebrationDate", "CelebrationType", "CelebrationNotes", "Created", "Modified")
+          .expand("CelebrationPerson")
+          .filter(`CelebrationType eq '${type}'`)
+          .orderBy("CelebrationDate", true)();
+      } else {
+        items = await this.getList().items
+          .select("Id", "Title", "CelebrationDate", "CelebrationType", "CelebrationNotes", "Created", "Modified")
+          .filter(`CelebrationType eq '${type}'`)
+          .orderBy("CelebrationDate", true)();
+      }
       
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return items.map((item: any) => this.mapToEvent(item));
@@ -164,14 +194,35 @@ export class CelebrationService implements ICelebrationService {
 
   public async addEvent(event: ICelebrationEventFormData): Promise<ICelebrationEvent> {
     try {
-      const item = await this.getList().items.add({
+      // Check if CelebrationPerson field exists
+      const hasPersonField = await this.checkFieldExists("CelebrationPerson");
+      
+      const itemData: Record<string, string | number> = {
         Title: event.Title,
         CelebrationDate: event.EventDate,
         CelebrationType: event.EventType,
         CelebrationNotes: event.Notes || ""
-      });
+      };
+
+      // Add PersonId if provided and field exists
+      if (hasPersonField && event.PersonId) {
+        itemData.CelebrationPersonId = event.PersonId;
+      }
+
+      const item = await this.getList().items.add(itemData);
       
-      return this.mapToEvent(item.data);
+      // Fetch the added item with Person info if field exists
+      let addedItem;
+      if (hasPersonField) {
+        addedItem = await this.getList().items.getById(item.data.Id)
+          .select("Id", "Title", "CelebrationPerson/Id", "CelebrationPerson/Title", "CelebrationPerson/EMail", "CelebrationDate", "CelebrationType", "CelebrationNotes", "Created", "Modified")
+          .expand("CelebrationPerson")();
+      } else {
+        addedItem = await this.getList().items.getById(item.data.Id)
+          .select("Id", "Title", "CelebrationDate", "CelebrationType", "CelebrationNotes", "Created", "Modified")();
+      }
+      
+      return this.mapToEvent(addedItem);
     } catch (error) {
       console.error("Error adding event:", error);
       throw new Error("Failed to add celebration event");
@@ -180,8 +231,9 @@ export class CelebrationService implements ICelebrationService {
 
   public async updateEvent(id: number, event: Partial<ICelebrationEventFormData>): Promise<void> {
     try {
-      const updateData: Record<string, string | undefined> = {};
+      const updateData: Record<string, string | number | undefined> = {};
       if (event.Title !== undefined) updateData.Title = event.Title;
+      if (event.PersonId !== undefined) updateData.CelebrationPersonId = event.PersonId;
       if (event.EventDate !== undefined) updateData.CelebrationDate = event.EventDate;
       if (event.EventType !== undefined) updateData.CelebrationType = event.EventType;
       if (event.Notes !== undefined) updateData.CelebrationNotes = event.Notes;
@@ -204,14 +256,30 @@ export class CelebrationService implements ICelebrationService {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapToEvent(item: any): ICelebrationEvent {
-    return {
+    const event: ICelebrationEvent = {
       Id: item.Id,
-      Title: item.Title,
+      Title: item.Title || (item.CelebrationPerson ? item.CelebrationPerson.Title : "Unknown"),
       EventDate: item.CelebrationDate,
       EventType: item.CelebrationType,
       Notes: item.CelebrationNotes,
       Created: item.Created,
       Modified: item.Modified
     };
+
+    // Add Person info if available
+    if (item.CelebrationPerson) {
+      event.Person = {
+        Id: item.CelebrationPerson.Id,
+        Title: item.CelebrationPerson.Title,
+        EMail: item.CelebrationPerson.EMail,
+        Picture: `/_layouts/15/userphoto.aspx?size=L&username=${item.CelebrationPerson.EMail}`
+      };
+    }
+
+    return event;
+  }
+
+  public async getUserPhotoUrl(email: string): Promise<string> {
+    return `/_layouts/15/userphoto.aspx?size=L&username=${email}`;
   }
 }

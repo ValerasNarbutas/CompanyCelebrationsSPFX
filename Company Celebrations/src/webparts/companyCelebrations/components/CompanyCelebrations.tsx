@@ -4,7 +4,26 @@ import styles from './CompanyCelebrations.module.scss';
 import type { ICompanyCelebrationsProps } from './ICompanyCelebrationsProps';
 import { useCelebrations } from '../hooks/useCelebrations';
 import { EventType, ICelebrationEvent } from '../models/ICelebrationEvent';
-import { Spinner, SpinnerSize, MessageBar, MessageBarType, DefaultButton, PrimaryButton, Dialog, DialogFooter, DialogType, TextField, Dropdown, IDropdownOption } from '@fluentui/react';
+import { 
+  Spinner, 
+  SpinnerSize, 
+  MessageBar, 
+  MessageBarType, 
+  DefaultButton, 
+  PrimaryButton, 
+  Dialog, 
+  DialogFooter, 
+  DialogType, 
+  TextField, 
+  Dropdown, 
+  IDropdownOption, 
+  Persona, 
+  PersonaSize,
+  IPersonaProps,
+  NormalPeoplePicker,
+  IBasePickerSuggestionsProps
+} from '@fluentui/react';
+import { SPHttpClient } from '@microsoft/sp-http';
 import { Confetti, Cake } from '@phosphor-icons/react';
 import { getMonthDays, getEventsForDate, getUpcomingEvents, formatEventDate } from '../utils/calendar-utils';
 import { format, isSameMonth, isToday } from 'date-fns';
@@ -27,9 +46,43 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
   
   // Form states
   const [formTitle, setFormTitle] = useState('');
+  const [formPersonId, setFormPersonId] = useState<number | undefined>();
   const [formDate, setFormDate] = useState('');
   const [formType, setFormType] = useState<EventType>('Birthday');
   const [formNotes, setFormNotes] = useState('');
+  const [usePeoplePicker, setUsePeoplePicker] = useState(true);
+  const [selectedPeople, setSelectedPeople] = useState<IPersonaProps[]>([]);
+
+  // People Picker suggestions props
+  const suggestionProps: IBasePickerSuggestionsProps = {
+    suggestionsHeaderText: 'Suggested People',
+    noResultsFoundText: 'No results found',
+    loadingText: 'Loading...',
+  };
+
+  // Function to search for people
+  const onFilterChanged = async (filterText: string, currentPersonas?: IPersonaProps[]): Promise<IPersonaProps[]> => {
+    if (filterText) {
+      try {
+        const response = await props.context.spHttpClient.get(
+          `${props.context.pageContext.web.absoluteUrl}/_api/web/siteusers?$filter=substringof('${filterText}',Title)&$top=10`,
+          SPHttpClient.configurations.v1
+        );
+        const data = await response.json();
+        
+        return data.value.map((user: { Id: number; Title: string; Email: string }) => ({
+          key: user.Id.toString(),
+          text: user.Title,
+          secondaryText: user.Email,
+          imageUrl: `/_layouts/15/userphoto.aspx?size=S&username=${user.Email}`
+        }));
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        return [];
+      }
+    }
+    return [];
+  };
 
   const filteredEvents = useMemo(() => {
     if (selectedFilter === 'all') return events;
@@ -41,9 +94,11 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
 
   const handleAddClick = (): void => {
     setFormTitle('');
+    setFormPersonId(undefined);
     setFormDate('');
     setFormType('Birthday');
     setFormNotes('');
+    setSelectedPeople([]);
     setIsAddDialogOpen(true);
   };
 
@@ -51,12 +106,15 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
     if (!formTitle || !formDate) return;
     
     try {
-      await addEvent({
+      const eventData = {
         Title: formTitle,
+        PersonId: formPersonId,
         EventDate: formDate,
         EventType: formType,
         Notes: formNotes || undefined
-      });
+      };
+      console.log('Adding event with data:', eventData);
+      await addEvent(eventData);
       setIsAddDialogOpen(false);
     } catch (err) {
       console.error('Failed to add event', err);
@@ -213,8 +271,17 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
                             key={event.Id}
                             className={`${styles.calendarEvent} ${event.EventType === 'Birthday' ? styles.calendarEventBirthday : styles.calendarEventSpecial}`}
                             onClick={() => handleEventClick(event)}
+                            title={event.Title}
                           >
-                            {event.Title}
+                            {event.Person && event.Person.Picture && (
+                              <img 
+                                src={event.Person.Picture} 
+                                alt={event.Title}
+                                className={styles.eventPersonPhoto}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            )}
+                            <span className={styles.eventTitle}>{event.Title}</span>
                           </div>
                         ))}
                         {dayEvents.length > 2 && (
@@ -244,9 +311,18 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
                     onClick={() => handleEventClick(event)}
                   >
                     <div className={styles.eventCardContent}>
-                      <div className={`${styles.eventIcon} ${event.EventType === 'Birthday' ? styles.eventIconBirthday : styles.eventIconSpecial}`}>
-                        {event.EventType === 'Birthday' ? <Cake size={20} weight="fill" /> : <Confetti size={20} weight="fill" />}
-                      </div>
+                      {event.Person && event.Person.Picture ? (
+                        <Persona
+                          imageUrl={event.Person.Picture}
+                          text={event.Title}
+                          size={PersonaSize.size32}
+                          hidePersonaDetails={true}
+                        />
+                      ) : (
+                        <div className={`${styles.eventIcon} ${event.EventType === 'Birthday' ? styles.eventIconBirthday : styles.eventIconSpecial}`}>
+                          {event.EventType === 'Birthday' ? <Cake size={20} weight="fill" /> : <Confetti size={20} weight="fill" />}
+                        </div>
+                      )}
                       
                       <div className={styles.eventDetails}>
                         <div className={styles.eventHeader}>
@@ -283,15 +359,50 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
           label="Event Type"
           options={eventTypeOptions}
           selectedKey={formType}
-          onChange={(_, option) => setFormType(option?.key as EventType)}
+          onChange={(_, option) => {
+            setFormType(option?.key as EventType);
+            const isBirthday = option?.key === 'Birthday';
+            setUsePeoplePicker(isBirthday);
+            if (!isBirthday) {
+              setSelectedPeople([]);
+              setFormPersonId(undefined);
+            }
+          }}
           required
         />
-        <TextField
-          label={formType === 'Birthday' ? 'Employee Name' : 'Event Name'}
-          value={formTitle}
-          onChange={(_, value) => setFormTitle(value || '')}
-          required
-        />
+        {usePeoplePicker && formType === 'Birthday' ? (
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Select Person *</label>
+            <NormalPeoplePicker
+              onResolveSuggestions={onFilterChanged}
+              onChange={(items) => {
+                console.log('People Picker onChange:', items);
+                setSelectedPeople(items || []);
+                if (items && items.length > 0) {
+                  const personId = parseInt(items[0].key as string);
+                  const personTitle = items[0].text || '';
+                  console.log('Selected person:', { personId, personTitle });
+                  setFormPersonId(personId);
+                  setFormTitle(personTitle);
+                } else {
+                  setFormPersonId(undefined);
+                  setFormTitle('');
+                }
+              }}
+              itemLimit={1}
+              pickerSuggestionsProps={suggestionProps}
+              selectedItems={selectedPeople}
+              resolveDelay={300}
+            />
+          </div>
+        ) : (
+          <TextField
+            label={formType === 'Birthday' ? 'Employee Name' : 'Event Name'}
+            value={formTitle}
+            onChange={(_, value) => setFormTitle(value || '')}
+            required
+          />
+        )}
         <TextField
           label="Date"
           type="date"
@@ -308,7 +419,7 @@ const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
         />
         <DialogFooter>
           <DefaultButton text="Cancel" onClick={() => setIsAddDialogOpen(false)} />
-          <PrimaryButton text="Add" onClick={handleAddSubmit} disabled={!formTitle || !formDate} />
+          <PrimaryButton text="Add" onClick={handleAddSubmit} disabled={(!formTitle && !formPersonId) || !formDate} />
         </DialogFooter>
       </Dialog>
 
