@@ -100,13 +100,16 @@
 }
 
 .calendarCell {
-  min-height: 80px;
+  height: 100px;
   padding: 8px;
   border-radius: 6px;
   border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   background: "[theme:white, default: #ffffff]";
   cursor: pointer;
   transition: all 0.2s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .calendarCell:hover {
@@ -135,6 +138,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow-y: auto;
+  flex: 1;
+  margin-top: 4px;
 }
 
 .calendarEvent {
@@ -156,6 +162,7 @@
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  margin-right: 4px;
 }
 
 .eventTitle {
@@ -200,6 +207,10 @@
 .eventCardContent {
   display: flex;
   gap: 12px;
+  
+  :global(.ms-Persona) {
+    flex-shrink: 0;
+  }
 }
 
 .eventIcon {
