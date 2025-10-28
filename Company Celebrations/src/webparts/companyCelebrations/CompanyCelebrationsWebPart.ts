@@ -3,33 +3,52 @@ import * as ReactDom from 'react-dom';
 import { Version } from '@microsoft/sp-core-library';
 import {
   type IPropertyPaneConfiguration,
-  PropertyPaneTextField
+  PropertyPaneTextField,
+  PropertyPaneToggle,
+  PropertyPaneButton,
+  PropertyPaneButtonType
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 
-import * as strings from 'CompanyCelebrationsWebPartStrings';
 import CompanyCelebrations from './components/CompanyCelebrations';
 import { ICompanyCelebrationsProps } from './components/ICompanyCelebrationsProps';
 
+// PnPjs imports
+import { spfi, SPFx } from "@pnp/sp";
+import { CelebrationService } from './services/CelebrationService';
+
 export interface ICompanyCelebrationsWebPartProps {
-  description: string;
+  listName: string;
+  enableAddEvent: boolean;
+  enableEditEvent: boolean;
+  enableDeleteEvent: boolean;
 }
 
 export default class CompanyCelebrationsWebPart extends BaseClientSideWebPart<ICompanyCelebrationsWebPartProps> {
 
   private _isDarkTheme: boolean = false;
-  private _environmentMessage: string = '';
+  private _currentTheme: IReadonlyTheme | undefined;
+  private _service: CelebrationService | undefined;
 
   public render(): void {
+    // Initialize PnPjs with SPFx context
+    const sp = spfi().using(SPFx(this.context));
+    this._service = new CelebrationService(sp, this.properties.listName || "CompanyCelebrations");
+
     const element: React.ReactElement<ICompanyCelebrationsProps> = React.createElement(
       CompanyCelebrations,
       {
-        description: this.properties.description,
+        context: this.context,
+        service: this._service,
         isDarkTheme: this._isDarkTheme,
-        environmentMessage: this._environmentMessage,
+        theme: this._currentTheme,
         hasTeamsContext: !!this.context.sdks.microsoftTeams,
-        userDisplayName: this.context.pageContext.user.displayName
+        userDisplayName: this.context.pageContext.user.displayName,
+        listName: this.properties.listName || "CompanyCelebrations",
+        enableAddEvent: this.properties.enableAddEvent !== false,
+        enableEditEvent: this.properties.enableEditEvent !== false,
+        enableDeleteEvent: this.properties.enableDeleteEvent !== false
       }
     );
 
@@ -37,38 +56,7 @@ export default class CompanyCelebrationsWebPart extends BaseClientSideWebPart<IC
   }
 
   protected onInit(): Promise<void> {
-    return this._getEnvironmentMessage().then(message => {
-      this._environmentMessage = message;
-    });
-  }
-
-
-
-  private _getEnvironmentMessage(): Promise<string> {
-    if (!!this.context.sdks.microsoftTeams) { // running in Teams, office.com or Outlook
-      return this.context.sdks.microsoftTeams.teamsJs.app.getContext()
-        .then(context => {
-          let environmentMessage: string = '';
-          switch (context.app.host.name) {
-            case 'Office': // running in Office
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentOffice : strings.AppOfficeEnvironment;
-              break;
-            case 'Outlook': // running in Outlook
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentOutlook : strings.AppOutlookEnvironment;
-              break;
-            case 'Teams': // running in Teams
-            case 'TeamsModern':
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentTeams : strings.AppTeamsTabEnvironment;
-              break;
-            default:
-              environmentMessage = strings.UnknownEnvironment;
-          }
-
-          return environmentMessage;
-        });
-    }
-
-    return Promise.resolve(this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentSharePoint : strings.AppSharePointEnvironment);
+    return super.onInit();
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
@@ -77,6 +65,7 @@ export default class CompanyCelebrationsWebPart extends BaseClientSideWebPart<IC
     }
 
     this._isDarkTheme = !!currentTheme.isInverted;
+    this._currentTheme = currentTheme;
     const {
       semanticColors
     } = currentTheme;
@@ -102,14 +91,38 @@ export default class CompanyCelebrationsWebPart extends BaseClientSideWebPart<IC
       pages: [
         {
           header: {
-            description: strings.PropertyPaneDescription
+            description: "Configure your Company Celebrations web part"
           },
           groups: [
             {
-              groupName: strings.BasicGroupName,
+              groupName: "List Settings",
               groupFields: [
-                PropertyPaneTextField('description', {
-                  label: strings.DescriptionFieldLabel
+                PropertyPaneTextField('listName', {
+                  label: 'SharePoint List Name',
+                  description: 'Name of the SharePoint list to store celebrations',
+                  value: 'CompanyCelebrations'
+                }),
+                PropertyPaneButton('createList', {
+                  text: 'Create List with Sample Data',
+                  buttonType: PropertyPaneButtonType.Primary,
+                  onClick: this._onCreateList.bind(this)
+                })
+              ]
+            },
+            {
+              groupName: "Permissions",
+              groupFields: [
+                PropertyPaneToggle('enableAddEvent', {
+                  label: 'Allow users to add events',
+                  checked: true
+                }),
+                PropertyPaneToggle('enableEditEvent', {
+                  label: 'Allow users to edit events',
+                  checked: true
+                }),
+                PropertyPaneToggle('enableDeleteEvent', {
+                  label: 'Allow users to delete events',
+                  checked: true
                 })
               ]
             }
@@ -117,5 +130,32 @@ export default class CompanyCelebrationsWebPart extends BaseClientSideWebPart<IC
         }
       ]
     };
+  }
+
+  private async _onCreateList(): Promise<void> {
+    if (!this._service) {
+      alert('Service not initialized. Please refresh the page.');
+      return;
+    }
+
+    try {
+      const listName = this.properties.listName || "CompanyCelebrations";
+      const confirmCreate = confirm(`This will create the list '${listName}' with sample data. Continue?`);
+      
+      if (!confirmCreate) {
+        return;
+      }
+
+      await this._service.createList();
+      await this._service.addSampleData();
+      
+      alert(`List '${listName}' created successfully with sample data!`);
+      
+      // Refresh the web part
+      this.render();
+    } catch (error) {
+      console.error('Error creating list:', error);
+      alert(`Error creating list: ${error.message || error}`);
+    }
   }
 }

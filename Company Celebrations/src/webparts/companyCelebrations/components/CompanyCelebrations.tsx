@@ -1,43 +1,364 @@
 import * as React from 'react';
+import { useState, useMemo } from 'react';
 import styles from './CompanyCelebrations.module.scss';
 import type { ICompanyCelebrationsProps } from './ICompanyCelebrationsProps';
-import { escape } from '@microsoft/sp-lodash-subset';
+import { useCelebrations } from '../hooks/useCelebrations';
+import { EventType, ICelebrationEvent } from '../models/ICelebrationEvent';
+import { Spinner, SpinnerSize, MessageBar, MessageBarType, DefaultButton, PrimaryButton, Dialog, DialogFooter, DialogType, TextField, Dropdown, IDropdownOption } from '@fluentui/react';
+import { Confetti, Cake } from '@phosphor-icons/react';
+import { getMonthDays, getEventsForDate, getUpcomingEvents, formatEventDate } from '../utils/calendar-utils';
+import { format, isSameMonth, isToday } from 'date-fns';
 
-export default class CompanyCelebrations extends React.Component<ICompanyCelebrationsProps> {
-  public render(): React.ReactElement<ICompanyCelebrationsProps> {
-    const {
-      description,
-      isDarkTheme,
-      environmentMessage,
-      hasTeamsContext,
-      userDisplayName
-    } = this.props;
+const CompanyCelebrations: React.FC<ICompanyCelebrationsProps> = (props) => {
+  const {
+    service,
+    enableAddEvent,
+    enableEditEvent,
+    enableDeleteEvent
+  } = props;
 
+  const { events, loading, error, addEvent, updateEvent, deleteEvent } = useCelebrations(service);
+  
+  const [selectedFilter, setSelectedFilter] = useState<EventType | 'all'>('all');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<ICelebrationEvent | null>(null);
+  
+  // Form states
+  const [formTitle, setFormTitle] = useState('');
+  const [formDate, setFormDate] = useState('');
+  const [formType, setFormType] = useState<EventType>('Birthday');
+  const [formNotes, setFormNotes] = useState('');
+
+  const filteredEvents = useMemo(() => {
+    if (selectedFilter === 'all') return events;
+    return events.filter(event => event.EventType === selectedFilter);
+  }, [events, selectedFilter]);
+
+  const upcomingEvents = useMemo(() => getUpcomingEvents(filteredEvents, 10), [filteredEvents]);
+  const monthDays = useMemo(() => getMonthDays(currentMonth), [currentMonth]);
+
+  const handleAddClick = (): void => {
+    setFormTitle('');
+    setFormDate('');
+    setFormType('Birthday');
+    setFormNotes('');
+    setIsAddDialogOpen(true);
+  };
+
+  const handleAddSubmit = async (): Promise<void> => {
+    if (!formTitle || !formDate) return;
+    
+    try {
+      await addEvent({
+        Title: formTitle,
+        EventDate: formDate,
+        EventType: formType,
+        Notes: formNotes || undefined
+      });
+      setIsAddDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to add event', err);
+    }
+  };
+
+  const handleEventClick = (event: ICelebrationEvent): void => {
+    if (!enableEditEvent) return;
+    setEditingEvent(event);
+    setFormTitle(event.Title);
+    setFormDate(event.EventDate);
+    setFormType(event.EventType);
+    setFormNotes(event.Notes || '');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (): Promise<void> => {
+    if (!editingEvent || !formTitle || !formDate) return;
+    
+    try {
+      await updateEvent(editingEvent.Id, {
+        Title: formTitle,
+        EventDate: formDate,
+        EventType: formType,
+        Notes: formNotes || undefined
+      });
+      setIsEditDialogOpen(false);
+      setEditingEvent(null);
+    } catch (err) {
+      console.error('Failed to update event', err);
+    }
+  };
+
+  const handleDelete = async (): Promise<void> => {
+    if (!editingEvent) return;
+    
+    try {
+      await deleteEvent(editingEvent.Id);
+      setIsEditDialogOpen(false);
+      setEditingEvent(null);
+    } catch (err) {
+      console.error('Failed to delete event', err);
+    }
+  };
+
+  const previousMonth = (): void => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const nextMonth = (): void => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
+
+  const eventTypeOptions: IDropdownOption[] = [
+    { key: 'Birthday', text: 'Birthday' },
+    { key: 'Special Day', text: 'Special Day' }
+  ];
+
+  if (loading) {
     return (
-      <section className={`${styles.companyCelebrations} ${hasTeamsContext ? styles.teams : ''}`}>
-        <div className={styles.welcome}>
-          <img alt="" src={isDarkTheme ? require('../assets/welcome-dark.png') : require('../assets/welcome-light.png')} className={styles.welcomeImage} />
-          <h2>Well done, {escape(userDisplayName)}!</h2>
-          <div>{environmentMessage}</div>
-          <div>Web part property value: <strong>{escape(description)}</strong></div>
-        </div>
-        <div>
-          <h3>Welcome to SharePoint Framework!</h3>
-          <p>
-            The SharePoint Framework (SPFx) is a extensibility model for Microsoft Viva, Microsoft Teams and SharePoint. It&#39;s the easiest way to extend Microsoft 365 with automatic Single Sign On, automatic hosting and industry standard tooling.
-          </p>
-          <h4>Learn more about SPFx development:</h4>
-          <ul className={styles.links}>
-            <li><a href="https://aka.ms/spfx" target="_blank" rel="noreferrer">SharePoint Framework Overview</a></li>
-            <li><a href="https://aka.ms/spfx-yeoman-graph" target="_blank" rel="noreferrer">Use Microsoft Graph in your solution</a></li>
-            <li><a href="https://aka.ms/spfx-yeoman-teams" target="_blank" rel="noreferrer">Build for Microsoft Teams using SharePoint Framework</a></li>
-            <li><a href="https://aka.ms/spfx-yeoman-viva" target="_blank" rel="noreferrer">Build for Microsoft Viva Connections using SharePoint Framework</a></li>
-            <li><a href="https://aka.ms/spfx-yeoman-store" target="_blank" rel="noreferrer">Publish SharePoint Framework applications to the marketplace</a></li>
-            <li><a href="https://aka.ms/spfx-yeoman-api" target="_blank" rel="noreferrer">SharePoint Framework API reference</a></li>
-            <li><a href="https://aka.ms/m365pnp" target="_blank" rel="noreferrer">Microsoft 365 Developer Community</a></li>
-          </ul>
-        </div>
-      </section>
+      <div className={styles.loading}>
+        <Spinner size={SpinnerSize.large} label="Loading celebrations..." />
+      </div>
     );
   }
-}
+
+  return (
+    <div className={styles.celebrationsContainer}>
+      {error && (
+        <MessageBar messageBarType={MessageBarType.error} className={styles.error}>
+          {error}
+        </MessageBar>
+      )}
+
+      <header className={styles.header}>
+        <div className={styles.headerTitle}>
+          <div className={styles.iconWrapper}>
+            <Confetti size={28} weight="fill" />
+          </div>
+          <h1 className={styles.title}>Celebrations Calendar</h1>
+        </div>
+        <p className={styles.subtitle}>Never miss a birthday or special day again</p>
+      </header>
+
+      <div className={styles.toolbar}>
+        <div className={styles.filterTabs}>
+          <button
+            className={`${styles.filterTab} ${selectedFilter === 'all' ? styles.filterTabActive : ''}`}
+            onClick={() => setSelectedFilter('all')}
+          >
+            All Events
+          </button>
+          <button
+            className={`${styles.filterTab} ${selectedFilter === 'Birthday' ? styles.filterTabActive : ''}`}
+            onClick={() => setSelectedFilter('Birthday')}
+          >
+            Birthdays
+          </button>
+          <button
+            className={`${styles.filterTab} ${selectedFilter === 'Special Day' ? styles.filterTabActive : ''}`}
+            onClick={() => setSelectedFilter('Special Day')}
+          >
+            Special Days
+          </button>
+        </div>
+        
+        {enableAddEvent && (
+          <PrimaryButton text="Add Event" iconProps={{ iconName: 'Add' }} onClick={handleAddClick} />
+        )}
+      </div>
+
+      {events.length === 0 ? (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyStateIcon}>
+            <Confetti size={40} weight="duotone" />
+          </div>
+          <h3 className={styles.emptyStateTitle}>No Events Yet</h3>
+          <p className={styles.emptyStateText}>
+            Start celebrating your team! Add your first birthday or special day to get started.
+          </p>
+        </div>
+      ) : (
+        <div className={styles.mainContent}>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>{format(currentMonth, 'MMMM yyyy')}</h2>
+              <div>
+                <DefaultButton iconProps={{ iconName: 'ChevronLeft' }} onClick={previousMonth} />
+                <DefaultButton iconProps={{ iconName: 'ChevronRight' }} onClick={nextMonth} style={{ marginLeft: 8 }} />
+              </div>
+            </div>
+
+            <div className={styles.calendar}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className={styles.calendarDay}>{day}</div>
+              ))}
+
+              {monthDays.map((day, index) => {
+                const dayEvents = getEventsForDate(filteredEvents, day);
+                const isCurrentMonth = isSameMonth(day, currentMonth);
+                const isCurrentDay = isToday(day);
+
+                return (
+                  <div
+                    key={index}
+                    className={`${styles.calendarCell} ${!isCurrentMonth ? styles.calendarCellInactive : ''} ${isCurrentDay ? styles.calendarCellToday : ''}`}
+                  >
+                    <div className={styles.calendarCellDate}>{format(day, 'd')}</div>
+                    
+                    {dayEvents.length > 0 && (
+                      <div className={styles.calendarEvents}>
+                        {dayEvents.slice(0, 2).map(event => (
+                          <div
+                            key={event.Id}
+                            className={`${styles.calendarEvent} ${event.EventType === 'Birthday' ? styles.calendarEventBirthday : styles.calendarEventSpecial}`}
+                            onClick={() => handleEventClick(event)}
+                          >
+                            {event.Title}
+                          </div>
+                        ))}
+                        {dayEvents.length > 2 && (
+                          <div className={styles.calendarEvent}>+{dayEvents.length - 2} more</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Upcoming Events</h2>
+            
+            {upcomingEvents.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#605e5c' }}>
+                No upcoming events
+              </div>
+            ) : (
+              <div className={styles.eventsList}>
+                {upcomingEvents.map(event => (
+                  <div
+                    key={event.Id}
+                    className={`${styles.eventCard} ${event.EventType === 'Birthday' ? styles.eventCardBirthday : styles.eventCardSpecial}`}
+                    onClick={() => handleEventClick(event)}
+                  >
+                    <div className={styles.eventCardContent}>
+                      <div className={`${styles.eventIcon} ${event.EventType === 'Birthday' ? styles.eventIconBirthday : styles.eventIconSpecial}`}>
+                        {event.EventType === 'Birthday' ? <Cake size={20} weight="fill" /> : <Confetti size={20} weight="fill" />}
+                      </div>
+                      
+                      <div className={styles.eventDetails}>
+                        <div className={styles.eventHeader}>
+                          <h3 className={styles.eventName}>{event.Title}</h3>
+                          <span className={styles.eventBadge}>
+                            {event.daysUntil === 0 ? 'Today!' : event.daysUntil === 1 ? 'Tomorrow' : `${event.daysUntil} days`}
+                          </span>
+                        </div>
+                        <p className={styles.eventDate}>{formatEventDate(event.EventDate)}</p>
+                        {event.Notes && (
+                          <p className={styles.eventNotes}>{event.Notes}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Event Dialog */}
+      <Dialog
+        hidden={!isAddDialogOpen}
+        onDismiss={() => setIsAddDialogOpen(false)}
+        dialogContentProps={{
+          type: DialogType.normal,
+          title: 'Add New Event'
+        }}
+        modalProps={{ isBlocking: false }}
+      >
+        <Dropdown
+          label="Event Type"
+          options={eventTypeOptions}
+          selectedKey={formType}
+          onChange={(_, option) => setFormType(option?.key as EventType)}
+          required
+        />
+        <TextField
+          label={formType === 'Birthday' ? 'Employee Name' : 'Event Name'}
+          value={formTitle}
+          onChange={(_, value) => setFormTitle(value || '')}
+          required
+        />
+        <TextField
+          label="Date"
+          type="date"
+          value={formDate}
+          onChange={(_, value) => setFormDate(value || '')}
+          required
+        />
+        <TextField
+          label="Notes (Optional)"
+          multiline
+          rows={3}
+          value={formNotes}
+          onChange={(_, value) => setFormNotes(value || '')}
+        />
+        <DialogFooter>
+          <DefaultButton text="Cancel" onClick={() => setIsAddDialogOpen(false)} />
+          <PrimaryButton text="Add" onClick={handleAddSubmit} disabled={!formTitle || !formDate} />
+        </DialogFooter>
+      </Dialog>
+
+      {/* Edit Event Dialog */}
+      <Dialog
+        hidden={!isEditDialogOpen}
+        onDismiss={() => setIsEditDialogOpen(false)}
+        dialogContentProps={{
+          type: DialogType.normal,
+          title: 'Edit Event'
+        }}
+        modalProps={{ isBlocking: false }}
+      >
+        <Dropdown
+          label="Event Type"
+          options={eventTypeOptions}
+          selectedKey={formType}
+          onChange={(_, option) => setFormType(option?.key as EventType)}
+          required
+        />
+        <TextField
+          label={formType === 'Birthday' ? 'Employee Name' : 'Event Name'}
+          value={formTitle}
+          onChange={(_, value) => setFormTitle(value || '')}
+          required
+        />
+        <TextField
+          label="Date"
+          type="date"
+          value={formDate}
+          onChange={(_, value) => setFormDate(value || '')}
+          required
+        />
+        <TextField
+          label="Notes (Optional)"
+          multiline
+          rows={3}
+          value={formNotes}
+          onChange={(_, value) => setFormNotes(value || '')}
+        />
+        <DialogFooter>
+          {enableDeleteEvent && (
+            <DefaultButton text="Delete" onClick={handleDelete} styles={{ root: { marginRight: 'auto' } }} />
+          )}
+          <DefaultButton text="Cancel" onClick={() => setIsEditDialogOpen(false)} />
+          <PrimaryButton text="Save Changes" onClick={handleEditSubmit} disabled={!formTitle || !formDate} />
+        </DialogFooter>
+      </Dialog>
+    </div>
+  );
+};
+
+export default CompanyCelebrations;
