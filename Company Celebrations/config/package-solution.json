@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "company-celebrations-client-side-solution",
+    "id": "e78d49db-71a0-49df-bfa4-e3f7d0234fc4",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Company Celebrations description"
+      },
+      "longDescription": {
+        "default": "Company Celebrations description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "company-celebrations Feature",
+        "description": "The feature that activates elements of the company-celebrations solution.",
+        "id": "5777427c-e11b-4d83-88de-4cba9b75ec4e",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/company-celebrations.sppkg"
+  }
+}

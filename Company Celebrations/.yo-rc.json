@@ -1,0 +1,24 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "Company Celebrations",
+    "componentType": "webpart",
+    "template": "react",
+    "componentName": "CompanyCelebrations",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "18.17.1",
+    "sdksVersions": {
+      "@microsoft/microsoft-graph-client": "3.0.2",
+      "@microsoft/teams-js": "2.24.0"
+    },
+    "version": "1.20.0",
+    "libraryName": "company-celebrations",
+    "libraryId": "e78d49db-71a0-49df-bfa4-e3f7d0234fc4",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionShortDescription": "Company Celebrations description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false
+  }
+}
