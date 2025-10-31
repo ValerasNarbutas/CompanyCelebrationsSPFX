@@ -181,7 +181,7 @@ Write-Host "List created successfully!" -ForegroundColor Green
 
 ### Method 3: PnP Provisioning Template
 
-See [SPFX_IMPLEMENTATION_GUIDE.md](./SPFX_IMPLEMENTATION_GUIDE.md) for detailed PnP provisioning template XML.
+See [SPFX_IMPLEMENTATION_GUIDE.md](SPFX_IMPLEMENTATION_GUIDE.md) for detailed PnP provisioning template XML.
 
 ## 🌐 Deployment
 
@@ -510,8 +510,8 @@ gulp untrust-dev-cert
 
 If you encounter issues not covered here:
 
-1. Check [SPFX_IMPLEMENTATION_GUIDE.md](./SPFX_IMPLEMENTATION_GUIDE.md) for detailed implementation guidance
-2. Review [SPFX_PROJECT_REQUIREMENTS.md](./SPFX_PROJECT_REQUIREMENTS.md) for project specifications
+1. Check [SPFX_IMPLEMENTATION_GUIDE.md](SPFX_IMPLEMENTATION_GUIDE.md) for detailed implementation guidance
+2. Review [SPFX_PROJECT_REQUIREMENTS.md](SPFX_PROJECT_REQUIREMENTS.md) for project specifications
 3. Search [SharePoint Framework documentation](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/sharepoint-framework-overview)
 4. Visit [SharePoint Stack Exchange](https://sharepoint.stackexchange.com/)
 5. Check [PnPjs documentation](https://pnp.github.io/pnpjs/)
@@ -566,8 +566,8 @@ Contributions are welcome! Here's how you can help:
 ## 📚 Additional Resources
 
 ### Documentation
-- [SPFX_IMPLEMENTATION_GUIDE.md](./SPFX_IMPLEMENTATION_GUIDE.md) - Step-by-step implementation guide
-- [SPFX_PROJECT_REQUIREMENTS.md](./SPFX_PROJECT_REQUIREMENTS.md) - Detailed project requirements
+- [SPFX_IMPLEMENTATION_GUIDE.md](SPFX_IMPLEMENTATION_GUIDE.md) - Step-by-step implementation guide
+- [SPFX_PROJECT_REQUIREMENTS.md](SPFX_PROJECT_REQUIREMENTS.md) - Detailed project requirements
 
 ### SharePoint Framework
 - [SharePoint Framework Overview](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/sharepoint-framework-overview)
