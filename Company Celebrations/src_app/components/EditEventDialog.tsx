@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Cake, Balloon } from '@phosphor-icons/react'
 import { useState, useEffect } from 'react'
 import { CelebrationEvent, EventType } from '@/lib/types'
 import { toast } from 'sonner'
@@ -78,8 +79,18 @@ export function EditEventDialog({ event, open, onOpenChange, onEdit, onDelete }:
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="birthday">Birthday</SelectItem>
-                  <SelectItem value="special-day">Special Day</SelectItem>
+                  <SelectItem value="birthday">
+                    <div className="flex items-center gap-2">
+                      <Cake size={16} weight="fill" />
+                      <span>Birthday</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="special-day">
+                    <div className="flex items-center gap-2">
+                      <Balloon size={16} weight="fill" />
+                      <span>Special Day</span>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -46,29 +46,45 @@ The Company Celebrations web part provides an elegant solution for organizations
   - Navigate between months seamlessly
   - Click dates to view events for that day
   - Visual highlighting for dates with celebrations
+  - Event type icons (cake for birthdays, balloon for special days) on calendar
 
 - **🎂 Event Tracking**
   - Track employee birthdays
   - Track special company days (anniversaries, holidays, etc.)
   - Add custom notes to each event
   - Automatic countdown to upcoming events
+  - **NEW**: Sparkles animation when today is someone's birthday
+  - **NEW**: Floating balloons background for birthday celebrations
 
 - **✏️ Event Management**
   - Add new celebration events via intuitive dialog
   - Edit existing events
   - Delete events with confirmation
   - Form validation to ensure data quality
+  - Enhanced event type selection with visual icons
 
 - **🔍 Filtering & Search**
   - Filter events by type (All, Birthdays, Special Days)
   - View upcoming events in chronological order
   - Configurable number of upcoming events to display
+  - Filter tabs with intuitive icons for easy navigation
 
 - **⚙️ Configurable Settings**
   - Customizable SharePoint list name
   - Toggle add/edit/delete permissions
   - Configure number of upcoming events shown
   - Enable/disable filtering options
+
+- **🎨 Visual Enhancements**
+  - **NEW**: Animated sparkles effect when birthday is today
+  - **NEW**: Floating balloon animations in the background
+  - **NEW**: Enhanced icons throughout the interface:
+    - Cake icon for birthdays
+    - Balloon icon for special days
+    - Dynamic header icon based on today's celebrations
+  - Larger, more prominent event icons (24px)
+  - Today's birthday events show sparkle indicator
+  - Celebration notification in header when birthday is today
 
 ### Technical Features
 
@@ -79,6 +95,8 @@ The Company Celebrations web part provides an elegant solution for organizations
 - **Date Utilities**: Powered by date-fns for robust date handling
 - **Responsive UI**: Fluent UI components for consistency
 - **Error Handling**: Comprehensive error management and user feedback
+- **Animations**: Smooth animations powered by Framer Motion
+- **Icon Library**: Beautiful Phosphor Icons for visual appeal
 
 ## 📦 Prerequisites
 
@@ -258,17 +276,23 @@ Configure the web part through the property pane:
 
 1. Click the **"Add Celebration"** button
 2. Fill in the form:
+   - **Type**: Choose "Birthday" 🎂 or "Special Day" 🎈
    - **Name**: Person's name or event description
    - **Date**: Select the celebration date
-   - **Type**: Choose "Birthday" or "Special Day"
    - **Notes** (optional): Additional information
 3. Click **"Add Event"** to save
 
 ### Viewing Celebrations
 
 - **Calendar View**: Click on dates to see events
+  - Birthday events show with a 🎂 cake icon
+  - Special days show with a 🎈 balloon icon
 - **Upcoming Events**: View the list on the right side
 - Days with events are highlighted in the calendar
+- **NEW**: When today is someone's birthday, enjoy:
+  - ✨ Animated sparkles throughout the interface
+  - 🎈 Floating balloon animations in the background
+  - 🎉 Special birthday celebration message in the header
 
 ### Editing a Celebration
 
@@ -551,6 +575,13 @@ Contributions are welcome! Here's how you can help:
 
 | Version | Date | Comments |
 |---------|------|----------|
+| 1.1.0 | 2024 | Enhanced visual celebrations features |
+| - | - | - ✨ Added animated sparkles when birthday is today |
+| - | - | - 🎈 Added floating balloons background for birthdays |
+| - | - | - 🎨 Enhanced icons throughout the interface |
+| - | - | - 🎂 Cake icons for birthdays, balloon icons for special days |
+| - | - | - Dynamic header icon based on celebrations |
+| - | - | - Birthday celebration indicator in header |
 | 1.0.0 | 2024 | Initial release with core features |
 | - | - | - Calendar view with monthly navigation |
 | - | - | - Event management (CRUD operations) |
