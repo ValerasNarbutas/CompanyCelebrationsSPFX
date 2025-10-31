@@ -13,12 +13,12 @@ export function Sparkles() {
   const [sparkles, setSparkles] = useState<Sparkle[]>([]);
 
   useEffect(() => {
-    // Generate random sparkles
+    // Generate random sparkles (reduced from 30 to 15 for performance)
     const generateSparkles = () => {
       const newSparkles: Sparkle[] = [];
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 15; i++) {
         newSparkles.push({
-          id: `sparkle-${i}`,
+          id: `sparkle-${i}-${Date.now()}`,
           x: Math.random() * 100,
           y: Math.random() * 100,
           size: Math.random() * 8 + 4,
@@ -36,6 +36,15 @@ export function Sparkles() {
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+      <svg width="0" height="0">
+        <defs>
+          <linearGradient id="sparkleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FFD700" />
+            <stop offset="50%" stopColor="#FFA500" />
+            <stop offset="100%" stopColor="#FF69B4" />
+          </linearGradient>
+        </defs>
+      </svg>
       {sparkles.map((sparkle) => (
         <motion.div
           key={sparkle.id}
@@ -67,13 +76,6 @@ export function Sparkles() {
               d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"
               fill="url(#sparkleGradient)"
             />
-            <defs>
-              <linearGradient id="sparkleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FFD700" />
-                <stop offset="50%" stopColor="#FFA500" />
-                <stop offset="100%" stopColor="#FF69B4" />
-              </linearGradient>
-            </defs>
           </svg>
         </motion.div>
       ))}

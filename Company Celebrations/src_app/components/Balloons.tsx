@@ -22,11 +22,17 @@ const balloonColors = [
 
 export function Balloons() {
   const [balloons, setBalloons] = useState<Balloon[]>([]);
+  const [screenHeight, setScreenHeight] = useState(800); // Default height
 
   useEffect(() => {
-    // Generate random balloons
+    // Set screen height safely
+    if (typeof window !== 'undefined') {
+      setScreenHeight(window.innerHeight);
+    }
+
+    // Generate random balloons (reduced from 15 to 10 for performance)
     const newBalloons: Balloon[] = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 10; i++) {
       newBalloons.push({
         id: `balloon-${i}`,
         x: Math.random() * 100,
@@ -49,7 +55,7 @@ export function Balloons() {
             bottom: '-120px',
           }}
           animate={{
-            y: [0, -window.innerHeight - 200],
+            y: [0, -(screenHeight + 200)],
             x: [0, Math.sin(balloon.x) * 50],
           }}
           transition={{
