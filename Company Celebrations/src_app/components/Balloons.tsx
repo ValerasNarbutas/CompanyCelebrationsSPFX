@@ -31,10 +31,11 @@ export function Balloons() {
     }
 
     // Generate random balloons (reduced from 15 to 10 for performance)
+    const timestamp = Date.now();
     const newBalloons: Balloon[] = [];
     for (let i = 0; i < 10; i++) {
       newBalloons.push({
-        id: `balloon-${i}`,
+        id: `balloon-${timestamp}-${i}`,
         x: Math.random() * 100,
         color: balloonColors[Math.floor(Math.random() * balloonColors.length)],
         delay: Math.random() * 5,
