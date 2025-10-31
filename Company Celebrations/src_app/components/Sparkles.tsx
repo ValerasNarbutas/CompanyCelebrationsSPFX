@@ -1,0 +1,82 @@
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+
+interface Sparkle {
+  id: string;
+  x: number;
+  y: number;
+  size: number;
+  delay: number;
+}
+
+export function Sparkles() {
+  const [sparkles, setSparkles] = useState<Sparkle[]>([]);
+
+  useEffect(() => {
+    // Generate random sparkles
+    const generateSparkles = () => {
+      const newSparkles: Sparkle[] = [];
+      for (let i = 0; i < 30; i++) {
+        newSparkles.push({
+          id: `sparkle-${i}`,
+          x: Math.random() * 100,
+          y: Math.random() * 100,
+          size: Math.random() * 8 + 4,
+          delay: Math.random() * 2,
+        });
+      }
+      setSparkles(newSparkles);
+    };
+
+    generateSparkles();
+    const interval = setInterval(generateSparkles, 8000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+      {sparkles.map((sparkle) => (
+        <motion.div
+          key={sparkle.id}
+          className="absolute"
+          style={{
+            left: `${sparkle.x}%`,
+            top: `${sparkle.y}%`,
+          }}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{
+            opacity: [0, 1, 1, 0],
+            scale: [0, 1, 1, 0],
+            rotate: [0, 180, 360],
+          }}
+          transition={{
+            duration: 2,
+            delay: sparkle.delay,
+            repeat: Infinity,
+            repeatDelay: 3,
+          }}
+        >
+          <svg
+            width={sparkle.size}
+            height={sparkle.size}
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path
+              d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"
+              fill="url(#sparkleGradient)"
+            />
+            <defs>
+              <linearGradient id="sparkleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FFD700" />
+                <stop offset="50%" stopColor="#FFA500" />
+                <stop offset="100%" stopColor="#FF69B4" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </motion.div>
+      ))}
+    </div>
+  );
+}

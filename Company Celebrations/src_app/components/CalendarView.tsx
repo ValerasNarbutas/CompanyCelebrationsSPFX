@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { CelebrationEvent } from '@/lib/types'
 import { getMonthDays, getEventsForDate } from '@/lib/calendar-utils'
 import { format, isSameMonth, isToday } from 'date-fns'
-import { CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { CaretLeft, CaretRight, Cake, Balloon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -76,7 +76,7 @@ export function CalendarView({ events, onDateClick }: CalendarViewProps) {
                   {dayEvents.slice(0, 2).map(event => (
                     <div
                       key={event.id}
-                      className="text-xs px-2 py-1 rounded truncate text-left"
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded truncate text-left"
                       style={{
                         backgroundColor: event.type === 'birthday' 
                           ? 'var(--birthday-color)' 
@@ -84,7 +84,12 @@ export function CalendarView({ events, onDateClick }: CalendarViewProps) {
                         color: 'var(--secondary-foreground)'
                       }}
                     >
-                      {event.name}
+                      {event.type === 'birthday' ? (
+                        <Cake size={12} weight="fill" />
+                      ) : (
+                        <Balloon size={12} weight="fill" />
+                      )}
+                      <span className="truncate">{event.name}</span>
                     </div>
                   ))}
                   {dayEvents.length > 2 && (

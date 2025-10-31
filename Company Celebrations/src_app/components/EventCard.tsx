@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CelebrationEvent } from '@/lib/types'
-import { Cake, Confetti } from '@phosphor-icons/react'
+import { Cake, Balloon, Sparkle } from '@phosphor-icons/react'
 import { formatEventDate } from '@/lib/calendar-utils'
 import { motion } from 'framer-motion'
 
@@ -12,6 +12,7 @@ interface EventCardProps {
 
 export function EventCard({ event, onClick }: EventCardProps) {
   const isBirthday = event.type === 'birthday'
+  const isToday = event.daysUntil === 0
   
   return (
     <motion.div
@@ -29,15 +30,26 @@ export function EventCard({ event, onClick }: EventCardProps) {
       >
         <div className="flex gap-3">
           <div 
-            className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
+            className="flex items-center justify-center w-12 h-12 rounded-full shrink-0 relative"
             style={{
               backgroundColor: isBirthday ? 'var(--birthday-color)' : 'var(--special-day-color)'
             }}
           >
             {isBirthday ? (
-              <Cake size={20} weight="fill" style={{ color: 'var(--secondary-foreground)' }} />
+              <>
+                <Cake size={24} weight="fill" style={{ color: 'var(--secondary-foreground)' }} />
+                {isToday && (
+                  <motion.div
+                    className="absolute -top-1 -right-1"
+                    animate={{ rotate: [0, 10, 0, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Sparkle size={16} weight="fill" style={{ color: '#FFD700' }} />
+                  </motion.div>
+                )}
+              </>
             ) : (
-              <Confetti size={20} weight="fill" style={{ color: 'oklch(1 0 0)' }} />
+              <Balloon size={24} weight="fill" style={{ color: 'oklch(1 0 0)' }} />
             )}
           </div>
           
