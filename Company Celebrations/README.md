@@ -313,6 +313,475 @@ Use the filter dropdown to show:
 - **Birthdays**: Only birthday events
 - **Special Days**: Only special day events
 
+## 💡 Examples
+
+This section provides practical code examples for common scenarios when working with the Company Celebrations web part.
+
+### Example 1: Creating the SharePoint List with PowerShell
+
+Complete script to create the list and add sample data:
+
+```powershell
+# Connect to your SharePoint site
+Connect-PnPOnline -Url "https://yourtenant.sharepoint.com/sites/yoursite" -Interactive
+
+# Create the CompanyCelebrations list
+$list = New-PnPList -Title "CompanyCelebrations" -Template GenericList -OnQuickLaunch
+
+# Add EventDate column (Date only)
+Add-PnPField -List "CompanyCelebrations" -DisplayName "EventDate" -InternalName "EventDate" -Type DateTime -AddToDefaultView -Required
+
+# Add EventType column (Choice)
+$choiceFieldXml = @"
+<Field Type='Choice' 
+       DisplayName='EventType' 
+       Required='TRUE' 
+       Format='Dropdown' 
+       StaticName='EventType' 
+       Name='EventType'>
+  <CHOICES>
+    <CHOICE>Birthday</CHOICE>
+    <CHOICE>Special Day</CHOICE>
+  </CHOICES>
+  <Default>Birthday</Default>
+</Field>
+"@
+Add-PnPFieldFromXml -List "CompanyCelebrations" -FieldXml $choiceFieldXml -AddToDefaultView
+
+# Add Notes column (Multi-line text)
+Add-PnPField -List "CompanyCelebrations" -DisplayName "Notes" -InternalName "Notes" -Type Note -AddToDefaultView -Required:$false
+
+# Optional: Add sample special day events (no employee birthdays for privacy)
+$today = Get-Date
+$sampleEvents = @(
+    @{
+        Title = "Company Anniversary"
+        EventDate = Get-Date -Year $today.Year -Month 9 -Day 1 -Hour 0 -Minute 0 -Second 0
+        EventType = "Special Day"
+        Notes = "Celebrating our founding in 2010!"
+    },
+    @{
+        Title = "Team Building Day"  
+        EventDate = Get-Date -Year $today.Year -Month 12 -Day 15 -Hour 0 -Minute 0 -Second 0
+        EventType = "Special Day"
+        Notes = "Annual team building event"
+    },
+    @{
+        Title = "Summer Party"
+        EventDate = Get-Date -Year $today.Year -Month 7 -Day 20 -Hour 0 -Minute 0 -Second 0
+        EventType = "Special Day"
+        Notes = "Company summer celebration"
+    }
+)
+
+foreach ($event in $sampleEvents) {
+    Add-PnPListItem -List "CompanyCelebrations" -Values $event
+    Write-Host "Added: $($event.Title)" -ForegroundColor Green
+}
+
+Write-Host "`nList 'CompanyCelebrations' created successfully with sample data!" -ForegroundColor Cyan
+```
+
+### Example 2: Using the Service Layer Programmatically
+
+If you're extending the web part or building custom functionality:
+
+```typescript
+import { SPFI, spfi, SPFx } from "@pnp/sp";
+import { CelebrationService } from './services/CelebrationService';
+import { ICelebrationEvent } from './models/ICelebrationEvent';
+
+// Initialize PnPjs with SPFx context
+const sp: SPFI = spfi().using(SPFx(this.context));
+
+// Create service instance
+const service = new CelebrationService(sp, "CompanyCelebrations");
+
+// Example 1: Get all events
+async function getAllEvents(): Promise<void> {
+  try {
+    const events: ICelebrationEvent[] = await service.getEvents();
+    console.log(`Found ${events.length} celebration events`);
+    events.forEach(event => {
+      console.log(`${event.Title} - ${event.EventDate} (${event.EventType})`);
+    });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+  }
+}
+
+// Example 2: Add a new birthday
+async function addBirthday(): Promise<void> {
+  try {
+    const newEvent = await service.addEvent({
+      Title: "John Doe",
+      EventDate: "1985-03-15T00:00:00Z",
+      EventType: "Birthday",
+      Notes: "Software Engineer"
+    });
+    console.log(`Birthday added with ID: ${newEvent.Id}`);
+  } catch (error) {
+    console.error('Error adding birthday:', error);
+  }
+}
+
+// Example 3: Update an event
+async function updateEvent(eventId: number): Promise<void> {
+  try {
+    await service.updateEvent(eventId, {
+      Notes: "Updated notes - Team Lead"
+    });
+    console.log('Event updated successfully');
+  } catch (error) {
+    console.error('Error updating event:', error);
+  }
+}
+
+// Example 4: Delete an event
+async function deleteEvent(eventId: number): Promise<void> {
+  try {
+    await service.deleteEvent(eventId);
+    console.log('Event deleted successfully');
+  } catch (error) {
+    console.error('Error deleting event:', error);
+  }
+}
+
+// Example 5: Filter by event type
+async function getBirthdaysOnly(): Promise<void> {
+  try {
+    const birthdays = await service.getEventsByType("Birthday");
+    console.log(`Found ${birthdays.length} birthdays`);
+  } catch (error) {
+    console.error('Error fetching birthdays:', error);
+  }
+}
+```
+
+### Example 3: Custom React Component Using the Hook
+
+Create a custom component that uses the celebrations data:
+
+```typescript
+import * as React from 'react';
+import { useCelebrations } from '../hooks/useCelebrations';
+import { ICelebrationService } from '../services/ICelebrationService';
+import { getUpcomingEvents } from '../utils/calendar-utils';
+
+interface IUpcomingBirthdaysProps {
+  service: ICelebrationService;
+  count?: number;
+}
+
+export const UpcomingBirthdays: React.FC<IUpcomingBirthdaysProps> = ({ 
+  service, 
+  count = 5 
+}) => {
+  const { events, loading, error } = useCelebrations(service);
+  
+  // Filter to birthdays only and get upcoming
+  const upcomingBirthdays = React.useMemo(() => {
+    const birthdays = events.filter(e => e.EventType === 'Birthday');
+    return getUpcomingEvents(birthdays, count);
+  }, [events, count]);
+
+  if (loading) {
+    return <div>Loading birthdays...</div>;
+  }
+
+  if (error) {
+    return <div>Error loading birthdays: {error}</div>;
+  }
+
+  return (
+    <div>
+      <h3>Upcoming Birthdays</h3>
+      {upcomingBirthdays.length === 0 ? (
+        <p>No upcoming birthdays</p>
+      ) : (
+        <ul>
+          {upcomingBirthdays.map(event => (
+            <li key={event.Id}>
+              <strong>{event.Title}</strong>
+              {' - '}
+              {event.daysUntil === 0 ? '🎂 Today!' : `in ${event.daysUntil} days`}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+```
+
+### Example 4: REST API Direct Access
+
+If you prefer using REST API directly instead of the service layer:
+
+```typescript
+import { WebPartContext } from '@microsoft/sp-webpart-base';
+
+export class DirectRestExample {
+  constructor(private context: WebPartContext) {}
+
+  // Get all events using REST API
+  public async getEventsViaRest(): Promise<any[]> {
+    const listName = 'CompanyCelebrations';
+    const endpoint = `${this.context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${listName}')/items?$select=Id,Title,EventDate,EventType,Notes&$orderby=EventDate`;
+    
+    try {
+      const response = await this.context.httpClient.get(
+        endpoint,
+        this.context.httpClient.configurations.v1
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.value;
+    } catch (error) {
+      console.error('REST API error:', error);
+      throw error;
+    }
+  }
+
+  // Add event using REST API
+  public async addEventViaRest(event: any): Promise<any> {
+    const listName = 'CompanyCelebrations';
+    const endpoint = `${this.context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('${listName}')/items`;
+    
+    const body = JSON.stringify({
+      Title: event.Title,
+      EventDate: event.EventDate,
+      EventType: event.EventType,
+      Notes: event.Notes || ''
+    });
+
+    try {
+      const response = await this.context.httpClient.post(
+        endpoint,
+        this.context.httpClient.configurations.v1,
+        {
+          headers: {
+            'Accept': 'application/json;odata=nometadata',
+            'Content-Type': 'application/json;odata=nometadata',
+            'odata-version': ''
+          },
+          body: body
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('REST API error:', error);
+      throw error;
+    }
+  }
+}
+```
+
+### Example 5: Bulk Import Events from CSV
+
+PowerShell script to import events from a CSV file:
+
+```powershell
+# CSV format: Name,Date,Type,Notes
+# Example: John Doe,1985-03-15,Birthday,Engineering Team
+
+# Connect to SharePoint
+Connect-PnPOnline -Url "https://yourtenant.sharepoint.com/sites/yoursite" -Interactive
+
+# Import from CSV
+$csvPath = "C:\celebrations.csv"
+$events = Import-Csv -Path $csvPath
+
+Write-Host "Importing $($events.Count) events..." -ForegroundColor Cyan
+
+foreach ($event in $events) {
+    try {
+        # Parse date and ensure it's in correct format
+        $eventDate = [DateTime]::Parse($event.Date)
+        
+        # Add to SharePoint list
+        Add-PnPListItem -List "CompanyCelebrations" -Values @{
+            Title = $event.Name
+            EventDate = $eventDate.ToString("yyyy-MM-ddT00:00:00Z")
+            EventType = $event.Type
+            Notes = $event.Notes
+        }
+        
+        Write-Host "✓ Added: $($event.Name)" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "✗ Failed to add $($event.Name): $_" -ForegroundColor Red
+    }
+}
+
+Write-Host "`nImport complete!" -ForegroundColor Cyan
+```
+
+### Example 6: Web Part Configuration in Page
+
+Configure the web part properties programmatically:
+
+```typescript
+// In your web part class (CompanyCelebrationsWebPart.ts)
+
+// Set default properties
+protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
+  return {
+    pages: [
+      {
+        header: {
+          description: "Configure the Company Celebrations web part"
+        },
+        groups: [
+          {
+            groupName: "List Settings",
+            groupFields: [
+              PropertyPaneTextField('listName', {
+                label: 'SharePoint List Name',
+                value: 'CompanyCelebrations',
+                description: 'Name of the list storing celebration events'
+              }),
+              PropertyPaneButton('createList', {
+                text: 'Create List with Sample Data',
+                buttonType: PropertyPaneButtonType.Primary,
+                onClick: this._onCreateList.bind(this),
+                disabled: false
+              })
+            ]
+          },
+          {
+            groupName: "Feature Settings",
+            groupFields: [
+              PropertyPaneToggle('enableAddEvent', {
+                label: 'Allow users to add events',
+                checked: true
+              }),
+              PropertyPaneToggle('enableEditEvent', {
+                label: 'Allow users to edit events',
+                checked: true
+              }),
+              PropertyPaneToggle('enableDeleteEvent', {
+                label: 'Allow users to delete events',
+                checked: true
+              })
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
+
+// Handle create list button click
+private async _onCreateList(): Promise<void> {
+  try {
+    await this._service.createList();
+    await this._service.addSampleData();
+    alert('List created successfully with sample data!');
+  } catch (error) {
+    alert(`Error creating list: ${error.message}`);
+  }
+}
+```
+
+### Example 7: Query Events for Specific Month
+
+Get all events occurring in a specific month:
+
+```typescript
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+
+async function getEventsForMonth(
+  service: ICelebrationService, 
+  year: number, 
+  month: number
+): Promise<ICelebrationEvent[]> {
+  // Get all events
+  const allEvents = await service.getEvents();
+  
+  // Filter to events in the specified month (recurring annually)
+  const monthStr = String(month).padStart(2, '0');
+  
+  return allEvents.filter(event => {
+    const eventDate = new Date(event.EventDate);
+    const eventMonth = String(eventDate.getMonth() + 1).padStart(2, '0');
+    return eventMonth === monthStr;
+  });
+}
+
+// Usage
+const octoberEvents = await getEventsForMonth(service, 2024, 10);
+console.log(`Found ${octoberEvents.length} events in October`);
+```
+
+### Example 8: Custom Notification for Today's Birthdays
+
+Send notifications for today's birthdays using Microsoft Graph:
+
+```typescript
+import { MSGraphClientV3 } from '@microsoft/sp-http';
+
+async function notifyTodaysBirthdays(
+  graphClient: MSGraphClientV3,
+  events: ICelebrationEvent[]
+): Promise<void> {
+  const today = new Date();
+  const todayStr = format(today, 'MM-dd');
+  
+  // Find today's birthdays
+  const todaysBirthdays = events.filter(event => {
+    if (event.EventType !== 'Birthday') return false;
+    const eventDate = new Date(event.EventDate);
+    const eventStr = format(eventDate, 'MM-dd');
+    return eventStr === todayStr;
+  });
+  
+  if (todaysBirthdays.length === 0) {
+    console.log('No birthdays today');
+    return;
+  }
+  
+  // Send Teams notification (requires Graph API permissions)
+  const message = {
+    subject: '🎂 Birthday Celebration Today!',
+    importance: 'normal',
+    body: {
+      contentType: 'html',
+      content: `
+        <h2>Today's Birthdays</h2>
+        <ul>
+          ${todaysBirthdays.map(b => `<li><strong>${b.Title}</strong></li>`).join('')}
+        </ul>
+        <p>Don't forget to wish them a happy birthday!</p>
+      `
+    },
+    toRecipients: [
+      {
+        emailAddress: {
+          address: 'hr@company.com'
+        }
+      }
+    ]
+  };
+  
+  try {
+    await graphClient.api('/me/sendMail').post({ message });
+    console.log('Birthday notification sent');
+  } catch (error) {
+    console.error('Error sending notification:', error);
+  }
+}
+```
+
 ## 🏗️ Architecture
 
 ### Technology Stack
