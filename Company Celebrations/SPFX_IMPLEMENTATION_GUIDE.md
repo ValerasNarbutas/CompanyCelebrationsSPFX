@@ -1220,6 +1220,560 @@ gulp bundle --ship --analyze
 
 ---
 
+## Practical Implementation Examples
+
+### Example 1: Complete Web Part Setup
+
+Here's a complete example of setting up the web part with all required dependencies:
+
+```typescript
+// CompanyCelebrationsWebPart.ts
+import * as React from 'react';
+import * as ReactDom from 'react-dom';
+import { Version } from '@microsoft/sp-core-library';
+import {
+  type IPropertyPaneConfiguration,
+  PropertyPaneTextField,
+  PropertyPaneToggle,
+  PropertyPaneButton,
+  PropertyPaneButtonType
+} from '@microsoft/sp-property-pane';
+import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
+import { IReadonlyTheme } from '@microsoft/sp-component-base';
+
+import * as strings from 'CompanyCelebrationsWebPartStrings';
+import CompanyCelebrations from './components/CompanyCelebrations';
+import { ICompanyCelebrationsProps } from './components/ICompanyCelebrationsProps';
+
+// PnPjs imports
+import { spfi, SPFx, SPFI } from "@pnp/sp";
+import "@pnp/sp/webs";
+import "@pnp/sp/lists";
+import "@pnp/sp/items";
+import { CelebrationService } from './services/CelebrationService';
+
+export interface ICompanyCelebrationsWebPartProps {
+  listName: string;
+  enableAddEvent: boolean;
+  enableEditEvent: boolean;
+  enableDeleteEvent: boolean;
+}
+
+export default class CompanyCelebrationsWebPart extends BaseClientSideWebPart<ICompanyCelebrationsWebPartProps> {
+  private _sp: SPFI;
+  private _service: CelebrationService;
+  private _isDarkTheme: boolean = false;
+  private _currentTheme: IReadonlyTheme | undefined;
+
+  protected async onInit(): Promise<void> {
+    // Initialize PnPjs
+    this._sp = spfi().using(SPFx(this.context));
+    
+    // Initialize service
+    this._service = new CelebrationService(
+      this._sp,
+      this.properties.listName || 'CompanyCelebrations',
+      this.context.pageContext.web.absoluteUrl
+    );
+
+    return super.onInit();
+  }
+
+  public render(): void {
+    const element: React.ReactElement<ICompanyCelebrationsProps> = React.createElement(
+      CompanyCelebrations,
+      {
+        context: this.context,
+        service: this._service,
+        isDarkTheme: this._isDarkTheme,
+        theme: this._currentTheme,
+        hasTeamsContext: !!this.context.sdks.microsoftTeams,
+        userDisplayName: this.context.pageContext.user.displayName,
+        listName: this.properties.listName || 'CompanyCelebrations',
+        enableAddEvent: this.properties.enableAddEvent !== false,
+        enableEditEvent: this.properties.enableEditEvent !== false,
+        enableDeleteEvent: this.properties.enableDeleteEvent !== false
+      }
+    );
+
+    ReactDom.render(element, this.domElement);
+  }
+
+  protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
+    if (!currentTheme) {
+      return;
+    }
+
+    this._isDarkTheme = !!currentTheme.isInverted;
+    this._currentTheme = currentTheme;
+
+    const {
+      semanticColors
+    } = currentTheme;
+
+    if (semanticColors) {
+      this.domElement.style.setProperty('--bodyText', semanticColors.bodyText || null);
+      this.domElement.style.setProperty('--link', semanticColors.link || null);
+      this.domElement.style.setProperty('--linkHovered', semanticColors.linkHovered || null);
+    }
+  }
+
+  protected onDispose(): void {
+    ReactDom.unmountComponentAtNode(this.domElement);
+  }
+
+  protected get dataVersion(): Version {
+    return Version.parse('1.0');
+  }
+
+  private async _onCreateList(): Promise<void> {
+    try {
+      await this._service.createList();
+      await this._service.addSampleData();
+      alert('List created successfully with sample data!');
+    } catch (error) {
+      alert(`Error creating list: ${error.message}`);
+    }
+  }
+
+  protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
+    return {
+      pages: [
+        {
+          header: {
+            description: strings.PropertyPaneDescription
+          },
+          groups: [
+            {
+              groupName: "List Settings",
+              groupFields: [
+                PropertyPaneTextField('listName', {
+                  label: 'SharePoint List Name',
+                  description: 'Name of the list storing celebration events'
+                }),
+                PropertyPaneButton('createList', {
+                  text: 'Create List with Sample Data',
+                  buttonType: PropertyPaneButtonType.Primary,
+                  onClick: this._onCreateList.bind(this)
+                })
+              ]
+            },
+            {
+              groupName: "Permissions",
+              groupFields: [
+                PropertyPaneToggle('enableAddEvent', {
+                  label: 'Allow users to add events',
+                  checked: true
+                }),
+                PropertyPaneToggle('enableEditEvent', {
+                  label: 'Allow users to edit events',
+                  checked: true
+                }),
+                PropertyPaneToggle('enableDeleteEvent', {
+                  label: 'Allow users to delete events',
+                  checked: true
+                })
+              ]
+            }
+          ]
+        }
+      ]
+    };
+  }
+}
+```
+
+### Example 2: Testing the Service Layer
+
+Unit test example for the CelebrationService:
+
+```typescript
+// CelebrationService.test.ts
+import { CelebrationService } from './CelebrationService';
+import { SPFI } from '@pnp/sp';
+import { ICelebrationEvent } from '../models/ICelebrationEvent';
+
+describe('CelebrationService', () => {
+  let service: CelebrationService;
+  let mockSp: SPFI;
+
+  beforeEach(() => {
+    // Create mock SP instance
+    mockSp = {
+      web: {
+        lists: {
+          getByTitle: jest.fn().mockReturnValue({
+            items: {
+              select: jest.fn().mockReturnThis(),
+              expand: jest.fn().mockReturnThis(),
+              orderBy: jest.fn().mockReturnThis(),
+              mockResolvedValue: jest.fn()
+            }
+          })
+        }
+      }
+    } as any;
+
+    service = new CelebrationService(mockSp, 'CompanyCelebrations');
+  });
+
+  it('should fetch all events', async () => {
+    const mockEvents = [
+      {
+        Id: 1,
+        Title: 'John Doe',
+        CelebrationDate: '1985-03-15',
+        CelebrationType: 'Birthday',
+        CelebrationNotes: 'Team member'
+      }
+    ];
+
+    // Mock the chain
+    mockSp.web.lists.getByTitle().items.select().expand().orderBy.mockResolvedValue(mockEvents);
+
+    const events = await service.getEvents();
+
+    expect(events).toHaveLength(1);
+    expect(events[0].Title).toBe('John Doe');
+  });
+
+  it('should add a new event', async () => {
+    const newEvent = {
+      Title: 'Jane Smith',
+      EventDate: '1990-07-20',
+      EventType: 'Birthday' as const,
+      Notes: 'New team member'
+    };
+
+    const mockAddResult = {
+      data: { Id: 2 },
+      item: {
+        select: jest.fn().mockReturnThis(),
+        mockResolvedValue: jest.fn().mockResolvedValue({
+          Id: 2,
+          Title: newEvent.Title,
+          CelebrationDate: newEvent.EventDate,
+          CelebrationType: newEvent.EventType,
+          CelebrationNotes: newEvent.Notes
+        })
+      }
+    };
+
+    mockSp.web.lists.getByTitle().items.add = jest.fn().mockResolvedValue(mockAddResult);
+
+    const result = await service.addEvent(newEvent);
+
+    expect(result.Id).toBe(2);
+    expect(result.Title).toBe('Jane Smith');
+  });
+});
+```
+
+### Example 3: Custom Hook Implementation
+
+Complete implementation of the useCelebrations hook:
+
+```typescript
+// useCelebrations.ts
+import { useState, useEffect, useCallback } from 'react';
+import { ICelebrationEvent, ICelebrationEventFormData, EventType } from '../models/ICelebrationEvent';
+import { ICelebrationService } from '../services/ICelebrationService';
+
+export interface UseCelebrationsReturn {
+  events: ICelebrationEvent[];
+  loading: boolean;
+  error: string | undefined;
+  addEvent: (event: ICelebrationEventFormData) => Promise<void>;
+  updateEvent: (id: number, event: Partial<ICelebrationEventFormData>) => Promise<void>;
+  deleteEvent: (id: number) => Promise<void>;
+  refreshEvents: () => Promise<void>;
+  filterByType: (type: EventType | 'all') => ICelebrationEvent[];
+}
+
+export const useCelebrations = (service: ICelebrationService): UseCelebrationsReturn => {
+  const [events, setEvents] = useState<ICelebrationEvent[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  const loadEvents = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(undefined);
+      const data = await service.getEvents();
+      setEvents(data);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      console.error('Error loading events:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [service]);
+
+  useEffect(() => {
+    loadEvents().catch((err) => {
+      console.error('Failed to load events:', err);
+    });
+  }, [loadEvents]);
+
+  const addEvent = useCallback(async (event: ICelebrationEventFormData): Promise<void> => {
+    try {
+      const newEvent = await service.addEvent(event);
+      setEvents(prevEvents => [...prevEvents, newEvent]);
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to add event');
+    }
+  }, [service]);
+
+  const updateEvent = useCallback(async (id: number, event: Partial<ICelebrationEventFormData>): Promise<void> => {
+    try {
+      await service.updateEvent(id, event);
+      // Refresh to get updated data
+      await loadEvents();
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to update event');
+    }
+  }, [service, loadEvents]);
+
+  const deleteEvent = useCallback(async (id: number): Promise<void> => {
+    try {
+      await service.deleteEvent(id);
+      setEvents(prevEvents => prevEvents.filter(e => e.Id !== id));
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete event');
+    }
+  }, [service]);
+
+  const filterByType = useCallback((type: EventType | 'all'): ICelebrationEvent[] => {
+    if (type === 'all') return events;
+    return events.filter(event => event.EventType === type);
+  }, [events]);
+
+  return {
+    events,
+    loading,
+    error,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    refreshEvents: loadEvents,
+    filterByType
+  };
+};
+```
+
+### Example 4: Deploying with CI/CD
+
+GitHub Actions workflow for automated deployment:
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to SharePoint
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+        cache-dependency-path: './Company Celebrations/package-lock.json'
+    
+    - name: Install dependencies
+      run: |
+        cd "Company Celebrations"
+        npm ci
+    
+    - name: Build solution
+      run: |
+        cd "Company Celebrations"
+        gulp bundle --ship
+        gulp package-solution --ship
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: spfx-package
+        path: './Company Celebrations/sharepoint/solution/*.sppkg'
+    
+    # Optional: Deploy to SharePoint using CLI for Microsoft 365
+    - name: Deploy to SharePoint
+      if: github.ref == 'refs/heads/main'
+      env:
+        SHAREPOINT_URL: ${{ secrets.SHAREPOINT_URL }}
+        SHAREPOINT_USERNAME: ${{ secrets.SHAREPOINT_USERNAME }}
+        SHAREPOINT_PASSWORD: ${{ secrets.SHAREPOINT_PASSWORD }}
+      run: |
+        npm install -g @pnp/cli-microsoft365
+        m365 login --authType password --userName $SHAREPOINT_USERNAME --password $SHAREPOINT_PASSWORD
+        m365 spo app add --filePath "./Company Celebrations/sharepoint/solution/company-celebrations.sppkg" --appCatalogUrl "$SHAREPOINT_URL/sites/appcatalog" --overwrite
+        m365 spo app deploy --name company-celebrations.sppkg --appCatalogUrl "$SHAREPOINT_URL/sites/appcatalog"
+```
+
+### Example 5: Debugging Configuration
+
+VS Code launch configuration for debugging:
+
+```json
+// .vscode/launch.json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Local workbench",
+      "type": "chrome",
+      "request": "launch",
+      "url": "https://localhost:4321/temp/workbench.html",
+      "webRoot": "${workspaceRoot}",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///.././src/*": "${webRoot}/src/*",
+        "webpack:///../../../src/*": "${webRoot}/src/*",
+        "webpack:///../../../../src/*": "${webRoot}/src/*",
+        "webpack:///../../../../../src/*": "${webRoot}/src/*"
+      },
+      "runtimeArgs": [
+        "--remote-debugging-port=9222",
+        "--disable-web-security"
+      ]
+    },
+    {
+      "name": "Hosted workbench",
+      "type": "chrome",
+      "request": "launch",
+      "url": "https://yourtenant.sharepoint.com/_layouts/workbench.aspx",
+      "webRoot": "${workspaceRoot}",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///.././src/*": "${webRoot}/src/*",
+        "webpack:///../../../src/*": "${webRoot}/src/*",
+        "webpack:///../../../../src/*": "${webRoot}/src/*",
+        "webpack:///../../../../../src/*": "${webRoot}/src/*"
+      },
+      "runtimeArgs": [
+        "--remote-debugging-port=9222"
+      ]
+    }
+  ]
+}
+```
+
+### Example 6: Environment-Specific Configuration
+
+Managing different environments:
+
+```typescript
+// config/environment.ts
+export interface IEnvironmentConfig {
+  listName: string;
+  enableDebugLogging: boolean;
+  apiTimeout: number;
+}
+
+export class EnvironmentConfig {
+  private static _config: IEnvironmentConfig;
+
+  public static get config(): IEnvironmentConfig {
+    if (!this._config) {
+      // Detect environment
+      const isLocalWorkbench = window.location.href.indexOf('localhost') !== -1;
+      const isDebug = DEBUG; // Set by webpack DefinePlugin
+
+      this._config = {
+        listName: isLocalWorkbench ? 'CompanyCelebrationsTest' : 'CompanyCelebrations',
+        enableDebugLogging: isDebug || isLocalWorkbench,
+        apiTimeout: isLocalWorkbench ? 10000 : 5000
+      };
+    }
+
+    return this._config;
+  }
+}
+
+// Usage in service
+export class CelebrationService implements ICelebrationService {
+  constructor(
+    private sp: SPFI,
+    listName?: string
+  ) {
+    this.listName = listName || EnvironmentConfig.config.listName;
+    
+    if (EnvironmentConfig.config.enableDebugLogging) {
+      console.log(`CelebrationService initialized with list: ${this.listName}`);
+    }
+  }
+}
+```
+
+### Example 7: Performance Monitoring
+
+Add performance tracking:
+
+```typescript
+// utils/performance.ts
+export class PerformanceMonitor {
+  private static marks: Map<string, number> = new Map();
+
+  public static start(label: string): void {
+    this.marks.set(label, performance.now());
+  }
+
+  public static end(label: string): number {
+    const start = this.marks.get(label);
+    if (!start) {
+      console.warn(`No start mark found for ${label}`);
+      return 0;
+    }
+
+    const duration = performance.now() - start;
+    console.log(`[Performance] ${label}: ${duration.toFixed(2)}ms`);
+    this.marks.delete(label);
+    return duration;
+  }
+}
+
+// Usage in service
+public async getEvents(): Promise<ICelebrationEvent[]> {
+  PerformanceMonitor.start('getEvents');
+  
+  try {
+    const hasPersonField = await this.checkFieldExists("CelebrationPerson");
+    
+    let items;
+    if (hasPersonField) {
+      items = await this.getList().items
+        .select(/* fields */)
+        .expand("CelebrationPerson")
+        .orderBy("CelebrationDate", true)();
+    } else {
+      items = await this.getList().items
+        .select(/* fields */)
+        .orderBy("CelebrationDate", true)();
+    }
+    
+    const events = items.map(this.mapToEvent.bind(this));
+    PerformanceMonitor.end('getEvents');
+    
+    return events;
+  } catch (error) {
+    PerformanceMonitor.end('getEvents');
+    throw error;
+  }
+}
+```
+
+---
+
 ## Next Steps
 
 1. ✅ Complete project setup
