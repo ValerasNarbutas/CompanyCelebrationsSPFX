@@ -317,6 +317,8 @@ Use the filter dropdown to show:
 
 This section provides practical code examples for common scenarios when working with the Company Celebrations web part.
 
+> 💡 **Tip**: For more comprehensive examples including testing, CI/CD pipelines, and advanced integrations, see [EXAMPLES.md](EXAMPLES.md)
+
 ### Example 1: Creating the SharePoint List with PowerShell
 
 Complete script to create the list and add sample data:
@@ -1066,8 +1068,10 @@ Contributions are welcome! Here's how you can help:
 ## 📚 Additional Resources
 
 ### Documentation
+- [EXAMPLES.md](EXAMPLES.md) - Comprehensive code examples and recipes
 - [SPFX_IMPLEMENTATION_GUIDE.md](SPFX_IMPLEMENTATION_GUIDE.md) - Step-by-step implementation guide
 - [SPFX_PROJECT_REQUIREMENTS.md](SPFX_PROJECT_REQUIREMENTS.md) - Detailed project requirements
+- [PROJECT_REQUIREMENTS.md](PROJECT_REQUIREMENTS.md) - Actual implementation requirements
 
 ### SharePoint Framework
 - [SharePoint Framework Overview](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/sharepoint-framework-overview)
